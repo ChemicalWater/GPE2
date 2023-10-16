@@ -35,11 +35,15 @@ namespace Test.Octree
         private Vector3[] nodeChildrenPos = new Vector3[8];
         public Vector3[] nodeNeighboursPos = new Vector3[26];
         private OctreeNode nodeParent;
-        public int[] nodeTriangle = new int[3];
+        public List<Vector3> nodeTriangle = new List<Vector3>();
         public bool leafNode;
         public bool onSurface;
         public int nodeDepth { get; private set; }
         public int maxDepth { get; private set; }
+
+
+        public Vector3 testDirection;
+        public Vector3 testDirection2;
 
         public OctreeNode (Vector3 nodePos, float size, int myDepth, int maxDepth, OctreeNode parent = null)
         {
@@ -394,14 +398,13 @@ namespace Test.Octree
                        onSurface = false; // Not on the surface
                    }
 
-                   Debug.Log("nodePosition: " + nodePosition + " children?: " + HaveChildren() + " depth: " + depthValue + " neighbours: " + nodeNeighbours[0] + " n2: " + nodeNeighbours[1] + " onSurface: " + onSurface + " normalizedDepth: " + normalizedDepth);
+                   //Debug.Log("nodePosition: " + nodePosition + " children?: " + HaveChildren() + " depth: " + depthValue + " neighbours: " + nodeNeighbours[0] + " n2: " + nodeNeighbours[1] + " onSurface: " + onSurface + " normalizedDepth: " + normalizedDepth);
 
                         if (onSurface)
                             PushVertice(sphereCenter, sphereRadius);
                 }
             }
         }
-
 
         private void PushVertice(Vector3 sphereCenter, float sphereRadius)
         {
@@ -431,7 +434,35 @@ namespace Test.Octree
                 }
                 returnPos = nodePosition + (direction * leftOverToRadius);
 
+                CreateTriangle();
+
                 voxelPoint = ClosestPointInsideNode(returnPos);
+            }
+        }
+
+        private void CreateTriangle()
+        {
+            Vector3 inside = new Vector3(0, 0, 0);
+            Vector3 outside = new Vector3(0, 0, 0);
+
+            int test1 = 0;
+            int test2 = 0;
+
+            foreach (OctreeNode n in nodeNeighbours)
+            {
+                if (n.depthValue == 0)
+                {
+                    outside += n.voxelPoint;
+                    test1 += 1;
+                }
+                if (n.depthValue == 1)
+                {
+                    inside += n.voxelPoint;
+                    test2 += 1;
+                }
+                Vector3 direction = (outside / test2).normalized - (inside / test1).normalized;
+                testDirection = (outside / test2).normalized;
+                testDirection2 = (inside / test1).normalized;
             }
         }
 
@@ -459,29 +490,5 @@ namespace Test.Octree
 
             return voxelPoints;
         }            //MIGHT BE USELESS
-        public List<int> GetAllTrianglesFromChildren()
-        {
-            List<int> triangles = new List<int>();
-
-            if (HaveChildren())
-            {
-                foreach (OctreeNode child in nodeChildren)
-                {
-                    triangles.AddRange(child.GetAllTrianglesFromChildren());
-                }
-            }
-            else
-            {
-                if (nodeTriangle[0] != 0)
-                {
-                    triangles.Add(nodeTriangle[0]);
-                    triangles.Add(nodeTriangle[1]);
-                    triangles.Add(nodeTriangle[2]);
-                }
-            }
-
-            return triangles;
-        }                  //MIGHT BE USELESS
-
     }
 }

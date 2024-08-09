@@ -26,6 +26,8 @@ namespace Test.Octree
         private Mesh mesh;
         private MeshFilter meshFilter;
 
+        public bool bigBoyNode = false;
+
         public Vector3 nodePosition;
         public float nodeSize;
         public float depthValue;
@@ -35,15 +37,11 @@ namespace Test.Octree
         private Vector3[] nodeChildrenPos = new Vector3[8];
         public Vector3[] nodeNeighboursPos = new Vector3[26];
         private OctreeNode nodeParent;
-        public List<Vector3> nodeTriangle = new List<Vector3>();
+        public int[] nodeTriangle = new int[3];
         public bool leafNode;
         public bool onSurface;
         public int nodeDepth { get; private set; }
         public int maxDepth { get; private set; }
-
-
-        public Vector3 testDirection;
-        public Vector3 testDirection2;
 
         public OctreeNode (Vector3 nodePos, float size, int myDepth, int maxDepth, OctreeNode parent = null)
         {
@@ -73,7 +71,6 @@ namespace Test.Octree
         public void AddNodeListToRoot(Dictionary<Vector3, OctreeNode> allNodes)
         {
             nodeInfo = allNodes;
-            Debug.Log(nodeInfo.Count());
         }
 
         private void GetChildPositions()
@@ -145,7 +142,7 @@ namespace Test.Octree
             
         }
 
-        private bool HaveChildren()
+        public bool HaveChildren()
         {
             if (nodeChildren[0] != null)
             {
@@ -225,7 +222,7 @@ namespace Test.Octree
         {
             if(HaveChildren())
             {
-
+                Vector3 average;
             }
         }
 
@@ -433,37 +430,47 @@ namespace Test.Octree
                     }
                 }
                 returnPos = nodePosition + (direction * leftOverToRadius);
-
-                CreateTriangle();
-
-                voxelPoint = ClosestPointInsideNode(returnPos);
+                voxelPoint = returnPos;
             }
         }
 
-        private void CreateTriangle()
+        public void TestTriangle()
         {
-            Vector3 inside = new Vector3(0, 0, 0);
-            Vector3 outside = new Vector3(0, 0, 0);
+            List<Vector3> test = GetAllNeighbourVertices();
+            Vector3 A = voxelPoint;
+            Vector3 B = test[0];
+            Vector3 C = test[1];
+            
+            Vector3 crossProduct = Vector3.Cross(B - A, C - A);
 
-            int test1 = 0;
-            int test2 = 0;
-
-            foreach (OctreeNode n in nodeNeighbours)
+            Debug.Log("Voxel: " + voxelPoint);
+            if (crossProduct.z > 0)
             {
-                if (n.depthValue == 0)
-                {
-                    outside += n.voxelPoint;
-                    test1 += 1;
-                }
-                if (n.depthValue == 1)
-                {
-                    inside += n.voxelPoint;
-                    test2 += 1;
-                }
-                Vector3 direction = (outside / test2).normalized - (inside / test1).normalized;
-                testDirection = (outside / test2).normalized;
-                testDirection2 = (inside / test1).normalized;
+                Debug.Log("Counterclockwise orientation");
             }
+            else if (crossProduct.z < 0)
+            {
+                Debug.Log("Clockwise orientation");
+            }
+            else
+            {
+                Debug.Log("Colinear points (not a triangle)");
+            }
+        }
+
+        public List<Vector3> GetAllNeighbourVertices()
+        {
+            List<Vector3> NeighbourVertices = new List<Vector3>();
+
+            foreach(OctreeNode n in nodeNeighbours)
+            {
+                if(n.onSurface)
+                {
+                    NeighbourVertices.Add(n.voxelPoint);
+                }
+            }
+
+            return NeighbourVertices;
         }
 
         // Method to get all voxelPoints from child nodes (recursive)
@@ -490,5 +497,29 @@ namespace Test.Octree
 
             return voxelPoints;
         }            //MIGHT BE USELESS
+        public List<int> GetAllTrianglesFromChildren()
+        {
+            List<int> triangles = new List<int>();
+
+            if (HaveChildren())
+            {
+                foreach (OctreeNode child in nodeChildren)
+                {
+                    triangles.AddRange(child.GetAllTrianglesFromChildren());
+                }
+            }
+            else
+            {
+                if (nodeTriangle[0] != 0)
+                {
+                    triangles.Add(nodeTriangle[0]);
+                    triangles.Add(nodeTriangle[1]);
+                    triangles.Add(nodeTriangle[2]);
+                }
+            }
+
+            return triangles;
+        }                  //MIGHT BE USELESS
+
     }
 }

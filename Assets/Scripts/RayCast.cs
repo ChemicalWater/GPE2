@@ -1,40 +1,86 @@
-
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class RayCast : MonoBehaviour
 {
-    Camera cam;
+    private Camera cam;
+    [SerializeField]
+    private GameObject target;
 
     // Start is called before the first frame update
     void Start()
     {
-        cam = GetComponent<Camera>();
+        cam = Camera.main;
+        if (cam == null)
+        {
+            Debug.LogError("Main Camera not found. Please ensure there's a Camera tagged as 'MainCamera' in the scene.");
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
-        transform.position = Vector3.MoveTowards(transform.position, transform.position + (cam.transform.forward * Input.GetAxis("Vertical")) + (transform.right * Input.GetAxis("Horizontal")), Time.deltaTime * 10f);
-        transform.Rotate(new Vector3(-Input.GetAxis("Mouse Y"), 0, 0));
-        cam.transform.Rotate(new Vector3(0, Input.GetAxis("Mouse X"), 0));
+        if (cam == null)
+        {
+            return;
+        }
+
+        // Movement logic
+        Vector3 moveDirection = (cam.transform.forward * Input.GetAxis("Vertical")) + (transform.right * Input.GetAxis("Horizontal"));
+        transform.position = Vector3.MoveTowards(transform.position, transform.position + moveDirection, Time.deltaTime * 10f);
+
+        // Rotation logic
+        float mouseY = Input.GetAxis("Mouse Y");
+        float mouseX = Input.GetAxis("Mouse X");
+
+        transform.LookAt(target.transform, target.transform.up);
+
+        //if (mouseX != 0)
+        //{
+        //    transform.Rotate(0, mouseX, 0);
+        //}
+        //
+        //if (mouseY != 0)
+        //{
+        //    cam.transform.Rotate(-mouseY, 0, 0);
+        //}
+
+        // Raycasting logic
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                if (hit.transform.CompareTag("Terrain"))
+                {
+                    Debug.DrawLine(transform.position, hit.point, Color.green);
+                    hit.transform.GetComponent<Marching>().AddTerrain(hit.point, 0.5f);
+                    hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
+                }
+            }
+            else
+            {
+                Debug.Log("No hit detected");
+            }
+        }
 
         if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-
-            if (Physics.Raycast(ray, out hit))
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit))
             {
-
                 if (hit.transform.CompareTag("Terrain"))
                 {
-                    Debug.Log("HIT" + hit.point);
-                    Debug.DrawLine(transform.position, hit.point, Color.green);
-                    hit.transform.GetComponent<Test.Octree.CreateOctree>().DrawHitcube(hit.point);
+                   Debug.DrawLine(transform.position, hit.point, Color.green);
+                   hit.transform.GetComponent<Marching>().RemoveTerrain(hit.point, 0.5f);
+                   hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
                 }
+            }
+            else
+            {
+                Debug.Log("No hit detected");
             }
         }
     }

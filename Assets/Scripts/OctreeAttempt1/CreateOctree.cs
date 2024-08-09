@@ -23,21 +23,15 @@ namespace Test.Octree
         [Range(1, 20)]
         private int subdivisions = 3;
 
-
-        //public List<OctreeNode> allNodes = new List<OctreeNode>();
         private Dictionary<Vector3, OctreeNode> allNodes = new Dictionary<Vector3, OctreeNode>();
         [SerializeField]
         List<int> triangles = new List<int>();
+
         [SerializeField]
         List<Vector3> vertices = new List<Vector3>();
 
-        List<Vector3> sortedVerticesDescending = new List<Vector3>();
-
         public float test2 = 0.93f;
         public float test3 = 0.86f;
-
-        private List<Vector3> test4 = new List<Vector3>();
-        private List<Vector3> test5 = new List<Vector3>();
 
         public OctreeNode rootNode;
 
@@ -101,56 +95,35 @@ namespace Test.Octree
             {
                 if (node.Value.onSurface)
                 {
-                    
                     vertices.Add(node.Value.voxelPoint);
-
-                    //triangles.Add(vertices.IndexOf(node.Value.nodeTriangle[0]));
-                    //triangles.Add(vertices.IndexOf(node.Value.nodeTriangle[1]));
-                    //triangles.Add(vertices.IndexOf(node.Value.nodeTriangle[2]));
-
-
-                    // if (node.Value.depthValue == 1)
-                    // {
-                    //     if (node.Value.nodeNeighbours[0] != null)
-                    //     {
-                    //         foreach(OctreeNode n in node.Value.nodeNeighbours)
-                    //         {
-                    //             if (n.depthValue == 1)
-                    //                 test4.Add(n.voxelPoint);
-                    //             if (n.depthValue == 0)
-                    //                 test5.Add(n.voxelPoint);
-                    //         }
-                    //     }
-                    // }
-
                 }
             }
 
-          // Vector3 averageInside = test4.Aggregate(new Vector3(0, 0, 0), (s, v) => s + v) / (float)test4.Count;
-          // Vector3 averageOutside = test5.Aggregate(new Vector3(0, 0, 0), (s, v) => s + v) / (float)test4.Count;
-          // Vector3 direction = averageInside.normalized - averageOutside.normalized;
-          //
-           sortedVerticesDescending = vertices.OrderBy(v => v.y).ToList();
-            
-            
-            int latitudeDivisions = 20; // Number of horizontal divisions
-            int longitudeDivisions = 20; // Number of vertical divisions
-            
-            
-            int numVertices = sortedVerticesDescending.Count;
+            SortVertices(vertices);
 
-            //AssignTrianglesToNodes();
 
-            // Define triangles based on the existing vertices
+            CreateTriangles();
+
+            //List<Vector3> sortedVerticesDescending = vertices.OrderBy(v => v.y).ToList();
+            //
+            //
+            //int latitudeDivisions = 20; // Number of horizontal divisions
+            //int longitudeDivisions = 20; // Number of vertical divisions
+            //
+            //
+            //int numVertices = sortedVerticesDescending.Count;
+            //
+            //// Define triangles based on the existing vertices
             //List<int> triangles = new List<int>();
-
-            // Assuming your vertices are ordered properly, you can create triangles as follows:
+            //
+            //// Assuming your vertices are ordered properly, you can create triangles as follows:
             //for (int i = 0; i < numVertices - 2; i++)
             //{
-            //    triangles.Add(i); // The first vertex
+            //    triangles.Add(0); // The first vertex
             //    triangles.Add(i + 1); // The next vertex
             //    triangles.Add(i + 2); // The vertex after the next
             //}
+            //
             //
             //mesh = new Mesh();
             //
@@ -161,6 +134,41 @@ namespace Test.Octree
             //meshFilter.mesh = mesh;
             //
             //meshCollider = gameObject.AddComponent<MeshCollider>();
+        }
+
+        void SortVertices(List<Vector3> vertices)
+        {
+            vertices.Sort((v1, v2) => {
+                // Calculate the spherical coordinates for each vertex.
+                float phi1 = Mathf.Acos(v1.y / radius);
+                float theta1 = Mathf.Atan2(v1.x, v1.z);
+
+                float phi2 = Mathf.Acos(v2.y / radius);
+                float theta2 = Mathf.Atan2(v2.x, v2.z);
+
+                // Compare the spherical coordinates for sorting.
+                if (phi1 != phi2)
+                    return phi1.CompareTo(phi2);
+                else
+                    return theta1.CompareTo(theta2);
+            });
+        }
+
+        void CreateTriangles()
+        {
+
+            // Assuming 'vertices' is already sorted.
+            Mesh mesh = new Mesh();
+            mesh.vertices = vertices.ToArray();
+
+
+            mesh.triangles = triangles.ToArray();
+            mesh.RecalculateNormals();
+
+            // Attach the mesh to a GameObject or perform further processing.
+            GameObject sphere = new GameObject("SphereMesh");
+            sphere.AddComponent<MeshFilter>().mesh = mesh;
+            sphere.AddComponent<MeshRenderer>();
         }
 
         public void DrawHitcube(Vector3 hitPoint)
@@ -207,9 +215,31 @@ namespace Test.Octree
        //     }
        // }
 
+        private void AssignTrianglesToNodes()
+        {
+            // Traverse through the list of triangles
+            for (int i = 0; i < triangles.Count; i += 3)
+            {
+                int v1 = triangles[i];
+                int v2 = triangles[i + 1];
+                int v3 = triangles[i + 2];
+
+                // Calculate the triangle's center position
+                Vector3 center = (vertices[v1] + vertices[v2] + vertices[v3]) / 3f;
+
+                // Find the node that contains the triangle's center
+                OctreeNode node = rootNode.FindContainingNode(center);
+
+                // Store the triangle in the node
+                node.nodeTriangle[0] = v1;
+                node.nodeTriangle[1] = v2;
+                node.nodeTriangle[2] = v3;
+            }
+        }
+
         private Vector3 test;
 
-        private void OnDrawGizmosSelected()
+        private void OnDrawGizmos()
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(gameObject.transform.position, radius);
@@ -218,11 +248,8 @@ namespace Test.Octree
             //Gizmos.DrawWireCube(rootNode.FindContainingNode(selectNode).nodePosition, new Vector3(rootNode.FindContainingNode(selectNode).nodeSize, rootNode.FindContainingNode(selectNode).nodeSize, rootNode.FindContainingNode(selectNode).nodeSize));
             //Debug.Log(rootNode.FindContainingNode(selectNode).nodePosition);
 
-            if(rootNode != null)
-            {
-                Gizmos.color = Color.cyan;
-                Gizmos.DrawWireCube(rootNode.nodePosition, new Vector3(rootNode.nodeSize, rootNode.nodeSize, rootNode.nodeSize));
-            }
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireCube(rootNode.nodePosition, new Vector3(rootNode.nodeSize, rootNode.nodeSize, rootNode.nodeSize));
 
             foreach (var node in allNodes)
             {
@@ -239,28 +266,20 @@ namespace Test.Octree
                 //        }
                 //    }
                 //}
+
                 //if(node.Value.leafNode)
                 //{
                 //  Gizmos.color = Color.white;
                 //  Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
                 //}
 
-               if(node.Value.depthValue == 1) //node.Value.depthValue < test2 && node.Value.depthValue > test3
+               if(node.Value.onSurface) //node.Value.depthValue < test2 && node.Value.depthValue > test3
                {
-                    if(node.Value.nodeNeighbours[0] != null)
-                    {
-                        if(node.Value.nodeNeighbours.Any(x => x.depthValue == 0)) {
-
-                            //Gizmos.color = Color.white;
-                            //Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
-                            //
-
-                            Gizmos.DrawLine(node.Value.testDirection, node.Value.testDirection2);
-                          //Handles.Label(node.Value.nodePosition, " " + sortedVerticesDescending.IndexOf(node.Value.voxelPoint));
-                          //Gizmos.color = Color.red;
-                          //Gizmos.DrawSphere(node.Value.voxelPoint, .01f);
-                        }
-                    }
+                   //Gizmos.color = Color.white;
+                   //Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
+               
+                   Gizmos.color = Color.red;
+                   Gizmos.DrawSphere(node.Value.voxelPoint, .01f);
                }
             }
            //foreach(Vector3 v in vertices)

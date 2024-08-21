@@ -9,57 +9,120 @@ using UnityEngine.UIElements;
 public class Marching : MonoBehaviour
 {
     [Header("Planet Settings")]
-    public float radius = 1f;
+    //public float radius = 1f;
     public float isoLevel = 0.5f;
-
-    [Header("Noise Settings")]
-    public float noiseScale = 0.1f;
-    public float noiseStrength = 0.2f;
 
     [Header("Octree Settings")]
     public int rootNodeSize = 5;
-    public int maxDepth = 5;
+    public int maxDepth = 8;
+    [Range(1, 6)]
+    public int standardDepth = 5;
+
+    [Header("Auto Update")]
+    public bool autoUpdate;
+
+    [Header("Extra Settings")]
+    public ShapeSettings shapeSettings;
+    public ColourSettings colourSettings;
+
+    private Mesh myMesh;
+    private List<Vector3> vertices = new List<Vector3>();
+    private List<int> triangles = new List<int>();
+
+    ShapeGenerator shapeGenerator = new ShapeGenerator();
+    ColourGenerator colourGenerator = new ColourGenerator();
+
+    [HideInInspector]
+    public bool shapeSettingsFoldout, colourSettingsFoldout;
 
     private Vector3 hitPoint;
-    public List<OctreeNode2> allNodes = new List<OctreeNode2>();
+    public Dictionary<Vector3, OctreeNode2> allNodes = new Dictionary<Vector3, OctreeNode2>();
+    public Dictionary<Vector3, OctreeNode2> leafNodes = new Dictionary<Vector3, OctreeNode2>();
 
     private OctreeNode2 rootNode;
 
-    [SerializeField]
-    private Vector3 testNode;
-
     void Start()
     {
-        rootNode = new OctreeNode2(transform.position, rootNodeSize, 0, maxDepth, rootNode);
-        rootNode.AssignScalarValues(rootNode, radius, transform.position);
+        rootNode = new OctreeNode2(transform.position, rootNodeSize, 0, standardDepth, rootNode);
+        //rootNode.AssignScalarValues(rootNode, radius, transform.position);
+
+        shapeGenerator.UpdateSettings(shapeSettings);
+        colourGenerator.UpdateSettings(colourSettings);
 
         allNodes = rootNode.TraverseOctree();
+        foreach(var n in allNodes)
+        {
+            if(n.Value.leafNode)
+            {
+                leafNodes.Add(n.Value.nodePosition, n.Value);
+            }
+        }
 
-        Mesh mesh = GenerateMesh();
-        GetComponent<MeshFilter>().mesh = mesh;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+        foreach(var n in leafNodes)
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 corner = n.Value.GetCorners()[i];
+                float noise = shapeGenerator.CalculateUnscaledElevation(corner.normalized);
+                n.Value.cornerValues[i] = n.Value.EvaluateScalarField(corner, shapeSettings.planetRadius, transform.position) + noise;
+            }
+            SetNeighbourNodes(n.Value);
+        }
+
+        myMesh = GenerateMesh();
+        GetComponent<MeshFilter>().mesh = myMesh;
+        GetComponent<MeshCollider>().sharedMesh = myMesh;
+    }
+
+    private void SetNeighbourNodes(OctreeNode2 n)
+    {
+        if(n.leafNode)
+        {
+            for (int i = 0; i < 26; i++)
+            {
+                if (allNodes.ContainsKey(n.nodePosition + n.GetNeighbourPositions()[i]))
+                    n.nodeNeighbour.Add(allNodes[n.nodePosition + n.GetNeighbourPositions()[i]]);
+                else if (allNodes.ContainsKey(n.parent.nodePosition + n.GetNeighbourPositions()[i]))
+                    n.nodeNeighbour.Add(allNodes[n.parent.nodePosition + n.GetNeighbourPositions()[i]]);
+            }
+        }
+        else
+            for(int i = 0; i < 8; i++)
+                SetNeighbourNodes(n.nodeChildren[i]);
     }
 
     Mesh GenerateMesh()
     {
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> triangles = new List<int>();
+        if (myMesh == null)
+            myMesh = new Mesh();
 
-        foreach (OctreeNode2 n in allNodes)
+        vertices.Clear();
+        triangles.Clear();
+
+        foreach (OctreeNode2 n in leafNodes.Values)
         {
             if (n.leafNode)
             {
-                MarchCube(n, isoLevel, vertices, triangles);
+                n.nodeVertices.Clear();
+                n.nodeTriangles.Clear();
+                for(int i = 0; i < 8; i++)
+                {
+                    if(Vector3.Distance(transform.position, n.GetCorners()[i]) < shapeSettings.planetRadius)
+                    {
+                        MarchCube(n, isoLevel, vertices, triangles);
+                        break;
+                    }
+                }
             }
         }
 
-        Mesh mesh = new Mesh
-        {
-            vertices = vertices.ToArray(),
-            triangles = triangles.ToArray()
-        };
-        mesh.RecalculateNormals();
-        return mesh;
+        myMesh.Clear();
+        myMesh.vertices = vertices.ToArray();
+        myMesh.triangles = triangles.ToArray();
+
+        myMesh.RecalculateNormals();
+        //myMesh.uv = uv;
+        return myMesh;
     }
 
     void MarchCube(OctreeNode2 node, float isoLevel, List<Vector3> vertices, List<int> triangles)
@@ -67,7 +130,6 @@ public class Marching : MonoBehaviour
         int cubeIndex = 0;
         float[] cubeCorners = new float[8];
 
-        // Populate cubeCorners with scalar field values
         for (int i = 0; i < 8; i++)
         {
             cubeCorners[i] = node.CornerValues()[i];
@@ -94,54 +156,49 @@ public class Marching : MonoBehaviour
             Vector3 vert3 = InterpolateVertex(edgeIndex3, cubeCorners, node);
 
             int vertexCount = vertices.Count;
-            vertices.Add(vert1);
-            vertices.Add(vert2);
-            vertices.Add(vert3);
+                vertices.Add(vert1);
+                vertices.Add(vert2);
+                vertices.Add(vert3);
+
             triangles.Add(vertexCount);
             triangles.Add(vertexCount + 1);
             triangles.Add(vertexCount + 2);
+
+            node.nodeVertices.Add(vert1);
+            node.nodeVertices.Add(vert2);
+            node.nodeVertices.Add(vert3);
+            node.nodeTriangles.Add(new Vector3(vertexCount, vertexCount + 1, vertexCount + 2));
         }
     }
 
-
-    Vector3 InterpolateVertex(int edgeIndex, float[] cubeCorners, OctreeNode2 node)
+    private Vector3 InterpolateVertex(int edgeIndex, float[] cubeCorners, OctreeNode2 node)
     {
         Vector3 localP1 = MarchingTable.Edges[edgeIndex, 0];
         Vector3 localP2 = MarchingTable.Edges[edgeIndex, 1];
 
-        // Scale and translate local positions to world positions
         Vector3 worldP1 = node.nodePosition + (localP1 - Vector3.one * 0.5f) * node.nodeSize;
         Vector3 worldP2 = node.nodePosition + (localP2 - Vector3.one * 0.5f) * node.nodeSize;
 
-        // Get the corner indices for the edge vertices
         int cornerIndex1 = GetCornerIndex(localP1);
         int cornerIndex2 = GetCornerIndex(localP2);
 
         if (cornerIndex1 < 0 || cornerIndex1 >= cubeCorners.Length ||
             cornerIndex2 < 0 || cornerIndex2 >= cubeCorners.Length)
         {
-            Debug.LogError($"Invalid corner index: {cornerIndex1}, {cornerIndex2}");
-            return worldP1; // or another appropriate default
+            return worldP1;
         }
 
-        // Fetch scalar values at these corners
         float val1 = cubeCorners[cornerIndex1];
         float val2 = cubeCorners[cornerIndex2];
 
         if (Mathf.Approximately(val1, val2))
         {
-            return worldP1; // or worldP2 depending on which end you prefer
+            return worldP1;
         }
 
-        // Interpolate vertex position
         float t = (isoLevel - val1) / (val2 - val1);
-
-        // Debug output for verification
-        //Debug.Log($"nodePosition: {node.nodePosition} nodeSize: {node.nodeSize} WorldPos1: {worldP1} LocalPos1: {localP1} WorldPos2: {worldP2} LocalPos2: {localP2} returnedValue: {Vector3.Lerp(worldP1, worldP2, t)}");
-
         return Vector3.Lerp(worldP1, worldP2, t);
     }
-
 
     int GetCornerIndex(Vector3 localPosition)
     {
@@ -174,42 +231,25 @@ public class Marching : MonoBehaviour
                 foundNode.cornerValues[i] = newValue;
 
                 // Update the value in all adjacent nodes sharing this corner
-                UpdateSharedCornerValues(corners[i], newValue);
+                UpdateSharedCornerValues(foundNode, corners[i], newValue);
             }
 
-            allNodes = rootNode.TraverseOctree();
+            //allNodes = rootNode.TraverseOctree();
             UpdateMesh();
         }
     }
 
-    private void UpdateSharedCornerValues(Vector3 cornerPosition, float newValue)
+    private void UpdateSharedCornerValues(OctreeNode2 n, Vector3 cornerPosition, float newValue)
     {
-        Queue<OctreeNode2> nodesToCheck = new Queue<OctreeNode2>();
-        nodesToCheck.Enqueue(rootNode);
-
-        while (nodesToCheck.Count > 0)
+        foreach(OctreeNode2 neighbour in n.nodeNeighbour)
         {
-            OctreeNode2 currentNode = nodesToCheck.Dequeue();
+            Vector3[] corners = neighbour.GetCorners();
 
-            if (currentNode.leafNode)
+            for (int i = 0; i < 8; i++)
             {
-                Vector3[] corners = currentNode.GetCorners();
-                for (int i = 0; i < 8; i++)
+                if(Vector3.Distance(corners[i], cornerPosition) < Mathf.Epsilon)
                 {
-                    if (Vector3.Distance(corners[i], cornerPosition) < Mathf.Epsilon)
-                    {
-                        currentNode.cornerValues[i] = newValue;
-                    }
-                }
-            }
-            else
-            {
-                foreach (var child in currentNode.nodeChildren)
-                {
-                    if (child != null)
-                    {
-                        nodesToCheck.Enqueue(child);
-                    }
+                    neighbour.cornerValues[i] = newValue;
                 }
             }
         }
@@ -232,49 +272,69 @@ public class Marching : MonoBehaviour
                 foundNode.cornerValues[i] = newValue;
 
                 // Update the value in all adjacent nodes sharing this corner
-                UpdateSharedCornerValues(corners[i], newValue);
+                UpdateSharedCornerValues(foundNode, corners[i], newValue);
             }
 
-            allNodes = rootNode.TraverseOctree();
+            //allNodes = rootNode.TraverseOctree();
             UpdateMesh();
         }
     }
 
     public void UpdateMesh()
     {
-        Mesh mesh = GenerateMesh();
-        GetComponent<MeshFilter>().mesh = mesh;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+        //Initialize();
+        myMesh = GenerateMesh();
+        colourGenerator.UpdateElevation(shapeGenerator.elevationMinMax);
+        GenerateColours();
+        GetComponent<MeshFilter>().mesh = myMesh;
+        GetComponent<MeshCollider>().sharedMesh = myMesh;
     }
 
-
-    public void DrawHitcube(Vector3 hP)
+    public void OnShapeSettingsUpdated()
     {
-        hitPoint = hP;
+        if (autoUpdate)
+        {
+            UpdateMesh();
+        }
     }
 
-    private void OnDrawGizmos()
+    public void onColourSettingsUpdated()
     {
+        if (autoUpdate)
+        {
+            UpdateMesh();
+            GenerateColours();
+        }
+    }
 
-       // OctreeNode2 foundNode = rootNode.FindNodeContainingPoint(rootNode, testNode);
-       //
-       // Gizmos.DrawWireCube(foundNode.nodePosition, new Vector3(foundNode.nodeSize, foundNode.nodeSize, foundNode.nodeSize));
-       // for (int i = 0; i < foundNode.GetCorners().Length; i++)
-       // {
-       //     Handles.Label(foundNode.GetCorners()[i], foundNode.CornerValues()[i].ToString());
-       // }
+    void GenerateColours()
+    {
+        colourGenerator.UpdateColours();
+        UpdateUVs(colourGenerator);
+    }
 
-         if (rootNode != null)
-         {
-             OctreeNode2 foundNode = rootNode.FindNodeContainingPoint(rootNode, hitPoint);
-             if (foundNode != null && foundNode.leafNode)
-             {
-                 Gizmos.DrawWireCube(foundNode.nodePosition, new Vector3(foundNode.nodeSize, foundNode.nodeSize, foundNode.nodeSize));
-                 for (int i = 0; i < foundNode.GetCorners().Length; i++)
-                 {
-                     Handles.Label(foundNode.GetCorners()[i], foundNode.CornerValues()[i].ToString());
-                 }
-             }
-         }
+    public void UpdateUVs(ColourGenerator colourGenerator)
+    {
+        Vector3[] vertices = myMesh.vertices;
+        Vector2[] uv = new Vector2[vertices.Length];
+
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Vector3 vertex = vertices[i];
+            Vector3 pointOnUnitSphere = vertex.normalized;
+
+            //float u = Mathf.Atan2(pointOnUnitSphere.z, pointOnUnitSphere.x) / (2f * Mathf.PI) + 0.5f;
+            //float v = Mathf.Asin(pointOnUnitSphere.y) / Mathf.PI + 0.5f;
+            Vector3 thisPosition = transform.position + new Vector3(shapeSettings.planetRadius, shapeSettings.planetRadius, shapeSettings.planetRadius);
+            float distance = Vector3.Distance(thisPosition, vertex) - shapeSettings.planetRadius;
+            float v = Mathf.Clamp01(distance);
+
+            // Optionally apply biome influence
+            float biomeIndex = colourGenerator.BiomePercentFromPoint(pointOnUnitSphere);
+
+            uv[i].x = biomeIndex;// = new Vector2(biomeIndex, v); // new Vector2(u, v);
+        }
+
+        myMesh.uv = uv;
     }
 }

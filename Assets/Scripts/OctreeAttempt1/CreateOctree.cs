@@ -91,13 +91,13 @@ namespace Test.Octree
             rootNode.AssignDepthValues(this.transform.position, radius, maxDepth);
 
 
-            foreach (var node in allNodes)
-            {
-                if (node.Value.onSurface)
-                {
-                    vertices.Add(node.Value.voxelPoint);
-                }
-            }
+           //foreach (var node in allNodes)
+           //{
+           //    if (node.Value.onSurface)
+           //    {
+           //        vertices.Add(node.Value.voxelPoint);
+           //    }
+           //}
 
             SortVertices(vertices);
 
@@ -181,7 +181,7 @@ namespace Test.Octree
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                rootNode.AssignDepthValues(this.transform.position, radius, maxDepth);
+                //rootNode.AssignDepthValues(this.transform.position, radius, maxDepth);
                 //Debug.Log(allNodes[rootNode.FindContainingNode(selectNode).nodePosition].nodeNeighbours[23].nodePosition);
                 //int tempCount = 0;
                 //foreach (var n in allNodes)
@@ -241,8 +241,8 @@ namespace Test.Octree
 
         private void OnDrawGizmos()
         {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(gameObject.transform.position, radius);
+            //Gizmos.color = Color.yellow;
+            //Gizmos.DrawWireSphere(gameObject.transform.position, radius);
 
             //Gizmos.color = Color.red;
             //Gizmos.DrawWireCube(rootNode.FindContainingNode(selectNode).nodePosition, new Vector3(rootNode.FindContainingNode(selectNode).nodeSize, rootNode.FindContainingNode(selectNode).nodeSize, rootNode.FindContainingNode(selectNode).nodeSize));
@@ -253,6 +253,17 @@ namespace Test.Octree
 
             foreach (var node in allNodes)
             {
+                Gizmos.color = Color.blue;
+                Gizmos.DrawWireCube(node.Value.nodePosition, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
+                if(node.Key == new Vector3(1.25f,1.25f,1.25f))
+                {
+                    node.Value.GetChildPositions();
+                    Gizmos.color = Color.red;
+                    for(int i = 0; i < 8; i++)
+                    {
+                        Gizmos.DrawWireCube(node.Value.nodeChildrenPos[i], new Vector3(node.Value.nodeSize / 2, node.Value.nodeSize / 2, node.Value.nodeSize / 2));
+                    }
+                }
                 //if(node.Value.depthValue == 1)
                 //{
                 //    Gizmos.color = Color.blue;
@@ -273,14 +284,14 @@ namespace Test.Octree
                 //  Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
                 //}
 
-               if(node.Value.onSurface) //node.Value.depthValue < test2 && node.Value.depthValue > test3
-               {
-                   //Gizmos.color = Color.white;
-                   //Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
-               
-                   Gizmos.color = Color.red;
-                   Gizmos.DrawSphere(node.Value.voxelPoint, .01f);
-               }
+               //if(node.Value.onSurface) //node.Value.depthValue < test2 && node.Value.depthValue > test3
+               //{
+               //     //Gizmos.color = Color.white;
+               //     //Gizmos.DrawWireCube(node.Key, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
+               //     Gizmos.DrawWireCube(node.Value.nodePosition, new Vector3(node.Value.nodeSize, node.Value.nodeSize, node.Value.nodeSize));
+               //    Gizmos.color = Color.red;
+               //    Gizmos.DrawSphere(node.Value.voxelPoint, .01f);
+               //}
             }
            //foreach(Vector3 v in vertices)
            //{

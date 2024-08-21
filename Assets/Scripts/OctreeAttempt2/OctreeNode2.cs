@@ -11,31 +11,36 @@ namespace Test.Octree
     {
         public float scalarValue { get; set; }
 
+        public int identify;
+
         public Vector3 nodePosition;
         public float nodeSize;
         public float depthValue;
         public OctreeNode2 parent;
         public Vector3 voxelPoint;
+        public List<OctreeNode2> nodeNeighbour = new List<OctreeNode2>();
         public OctreeNode2[] nodeChildren = new OctreeNode2[8];
         private Vector3[] nodeChildrenPos = new Vector3[8];
         public bool leafNode;
-        public bool bossNode;
 
-        public Vector3[] testVertices = new Vector3[12];
+        private Vector3 octreeCenter;
+        private float sphereRadius;
 
         public List<Vector3> nodeTriangles = new List<Vector3>();
+
+        public List<Vector3> nodeVertices = new List<Vector3>();
 
         public float[] cornerValues = new float[8];
         
         public int nodeDepth { get; private set; }
-        public int maxDepth { get; private set; }
+        public int standardDepth { get; private set; }
 
-        public OctreeNode2 (Vector3 nodePos, float size, int myDepth, int maxDepth, OctreeNode2 nodeParent)
+        public OctreeNode2 (Vector3 nodePos, float size, int myDepth, int standardDepth, OctreeNode2 nodeParent)
         {
             this.nodePosition = nodePos;
             this.nodeSize = size;
             this.nodeDepth = myDepth;
-            this.maxDepth = maxDepth;
+            this.standardDepth = standardDepth;
             this.parent = nodeParent;
 
             scalarValue = 0;
@@ -64,6 +69,29 @@ namespace Test.Octree
             return cornerValues;
         }
 
+        public float EvaluateScalarField(Vector3 position, float radius, Vector3 center)//, float noiseScale, float noiseStrength)
+        {
+            if (octreeCenter == new Vector3())
+                octreeCenter = center;
+            if (sphereRadius == 0)
+                sphereRadius = radius;
+
+            // Distance-based density (e.g., spherical)
+            float distanceFromCenter = Vector3.Distance(position, center);
+            float baseValue = Mathf.Clamp01(1f - (distanceFromCenter / radius));
+
+            //// Add 3D noise
+            //float noiseX = Mathf.PerlinNoise(position.x * noiseScale, position.y * noiseScale);
+            //float noiseY = Mathf.PerlinNoise(position.y * noiseScale, position.z * noiseScale);
+            //float noiseZ = Mathf.PerlinNoise(position.z * noiseScale, position.x * noiseScale);
+
+            // Combine the 3D noise values
+            //float noiseValue = (noiseX + noiseY + noiseZ) / 3f * noiseStrength;
+
+            // Combine the base value and noise
+            return Mathf.Clamp01(baseValue);// + noiseValue);
+        }
+
         public void AssignScalarValues(OctreeNode2 node, float radius, Vector3 center)
         {
             if (leafNode)
@@ -76,7 +104,11 @@ namespace Test.Octree
                 {
                     Vector3 cornerPos = GetCorners()[i];
                     float cornerDistanceFromCenter = Vector3.Distance(cornerPos, center) - radius;
-                    cornerValues[i] = (radius - cornerDistanceFromCenter) / radius;
+                    //cornerValues[i] = (radius - cornerDistanceFromCenter) / radius;
+
+                    //float cornerDistanceFromCenter = Vector3.Distance(cornerPos, center);
+                    cornerValues[i] = Mathf.Clamp01((radius - cornerDistanceFromCenter) / radius);
+
                     //if (cornerValues[i] < 0)
                     //    cornerValues[i] = 0;
                     //else
@@ -91,6 +123,40 @@ namespace Test.Octree
             {
                 child.AssignScalarValues(child, radius, center);
             }
+        }
+
+        public Vector3[] GetNeighbourPositions()
+        {
+            Vector3 mySize = new Vector3(nodeSize, nodeSize, nodeSize);
+            return new Vector3[]
+            {
+                new Vector3(-mySize.x, -mySize.y, -mySize.z),     // Neighbour 0 (bottom-left-back)
+                new Vector3(mySize.x, -mySize.y, -mySize.z),      // Neighbour 1 (bottom-right-back)
+                new Vector3(-mySize.x, mySize.y, -mySize.z),      // Neighbour 2 (top-left-back)
+                new Vector3(mySize.x, mySize.y, -mySize.z),       // Neighbour 3 (top-right-back)
+                new Vector3(-mySize.x, -mySize.y, mySize.z),      // Neighbour 4 (bottom-left-front)
+                new Vector3(mySize.x, -mySize.y, mySize.z),       // Neighbour 5 (bottom-right-front)
+                new Vector3(-mySize.x, mySize.y, mySize.z),       // Neighbour 6 (top-left-front)
+                new Vector3(mySize.x, mySize.y, mySize.z),        // Neighbour 7 (top-right-front)
+                new Vector3(-mySize.x, -mySize.y, 0),             // Neighbour 8 (bottom-left-middle)
+                new Vector3(mySize.x, -mySize.y, 0),              // Neighbour 9 (bottom-right-middle)
+                new Vector3(-mySize.x, mySize.y, 0),              // Neighbour 10 (top-left-middle)
+                new Vector3(mySize.x, mySize.y, 0),               // Neighbour 11 (top-right-middle)
+                new Vector3(-mySize.x, 0, -mySize.z),             // Neighbour 12 (left-back-middle)
+                new Vector3(mySize.x, 0, -mySize.z),              // Neighbour 13 (right-back-middle)
+                new Vector3(-mySize.x, 0, mySize.z),              // Neighbour 14 (left-front-middle)
+                new Vector3(mySize.x, 0, mySize.z),               // Neighbour 15 (right-front-middle)
+                new Vector3(0, -mySize.y, -mySize.z),             // Neighbour 16 (bottom-back-middle)
+                new Vector3(0, mySize.y, -mySize.z),              // Neighbour 17 (top-back-middle)
+                new Vector3(0, -mySize.y, mySize.z),              // Neighbour 18 (bottom-front-middle)
+                new Vector3(0, mySize.y, mySize.z),               // Neighbour 19 (top-front-middle)
+                new Vector3(0, -mySize.y, 0),                     // Neighbour 20 (bottom-middle)
+                new Vector3(0, mySize.y, 0),                      // Neighbour 21 (top-middle)
+                new Vector3(mySize.x, 0, 0),                      // Neighbour 22 (right-middle)
+                new Vector3(-mySize.x, 0, 0),                     // Neighbour 23 (left-middle)
+                new Vector3(0, 0, -mySize.z),                     // Neighbour 24 (back-middle)
+                new Vector3(0, 0, mySize.z)                      // Neighbour 25 (front-middle)
+            };
         }
 
         private void GetChildPositions()
@@ -116,42 +182,23 @@ namespace Test.Octree
 
         public bool HaveChildren()
         {
-            if (nodeChildren[0] != null)
+            if (nodeChildren[0] == null)
             {
-                leafNode = false;
-                    return true;
+                leafNode = true;
+                    return false;
             }
             else
             {
-                leafNode = true;
-                return false;
+                leafNode = false;
+                return true;
             } 
-        }
-
-        private void FindVertices()
-        {
-            float halfSize = nodeSize / 2f;
-            testVertices[0] = (new Vector3(nodePosition.x - halfSize, nodePosition.y - halfSize, nodePosition.z));
-            testVertices[1] = (new Vector3(nodePosition.x - halfSize, nodePosition.y + halfSize, nodePosition.z));
-            testVertices[2] = (new Vector3(nodePosition.x + halfSize, nodePosition.y - halfSize, nodePosition.z));
-            testVertices[3] = (new Vector3(nodePosition.x + halfSize, nodePosition.y + halfSize, nodePosition.z));
-            testVertices[4] = (new Vector3(nodePosition.x, nodePosition.y - halfSize, nodePosition.z - halfSize));
-            testVertices[5] = (new Vector3(nodePosition.x, nodePosition.y - halfSize, nodePosition.z + halfSize));
-            testVertices[6] = (new Vector3(nodePosition.x, nodePosition.y + halfSize, nodePosition.z - halfSize));
-            testVertices[7] = (new Vector3(nodePosition.x, nodePosition.y + halfSize, nodePosition.z + halfSize));
-            testVertices[8] = (new Vector3(nodePosition.x + halfSize, nodePosition.y, nodePosition.z - halfSize));
-            testVertices[9] = (new Vector3(nodePosition.x + halfSize, nodePosition.y, nodePosition.z + halfSize));
-            testVertices[10] = (new Vector3(nodePosition.x - halfSize, nodePosition.y, nodePosition.z - halfSize));
-            testVertices[11] = (new Vector3(nodePosition.x - halfSize, nodePosition.y, nodePosition.z + halfSize));
         }
 
         public OctreeNode2 FindNodeContainingPoint(OctreeNode2 node, Vector3 vertex)
         {
             // Check if the point is inside the current node and if the node is not at maximum depth
-            if (node.IsPointInsideNode(vertex) && node.nodeDepth != maxDepth)
+            if (node.IsPointInsideNode(vertex) && node.HaveChildren())
             {
-                if (node.HaveChildren())
-                {
                     // Traverse through the child nodes to find the correct node containing the vertex.
                     foreach (OctreeNode2 child in node.nodeChildren)
                     {
@@ -161,16 +208,9 @@ namespace Test.Octree
                             return FindNodeContainingPoint(child, vertex); // Return the result from the recursive call
                         }
                     }
-                }
-                else
-                {
-                    // Subdivide the node and then recheck the point in the subdivided nodes
-                    node.Subdivide();
-                    return FindNodeContainingPoint(node, vertex); // Return the result after subdivision
-                }
             }
 
-            // If the point is not inside the current node or it's at max depth, return the current node
+            // No children? return currentnode as node containing vertex
             return node;
         }
 
@@ -178,7 +218,7 @@ namespace Test.Octree
         // Function to place a vertex inside the octree
         public void PlaceVertexInNode(OctreeNode2 node, Vector3 vertex)
         {
-            if (node.IsPointInsideNode(vertex) && node.nodeDepth != maxDepth)
+            if (node.IsPointInsideNode(vertex) && node.nodeDepth != standardDepth)
             {
                 if(node.HaveChildren())
                 {
@@ -208,28 +248,61 @@ namespace Test.Octree
         public void Subdivide()
         {
             GetChildPositions();
-            if (nodeDepth < maxDepth)
+            if (nodeDepth < standardDepth)
             {
                 for(int i = 0; i < nodeChildrenPos.Length; i++)
                 {
-                    nodeChildren[i] = (new OctreeNode2(nodeChildrenPos[i], (nodeSize * .5f), (nodeDepth+1) ,maxDepth, this));
+                    nodeChildren[i] = (new OctreeNode2(nodeChildrenPos[i], (nodeSize * .5f), (nodeDepth+1),standardDepth, this));
                     nodeChildren[i].Subdivide();
                 }
             }
             HaveChildren();
         }
 
+       public void SubdivideIfNeeded(int maxDepth, float[] parentValues, Vector3[] parentCorners)
+       {
+            float[] parentV = parentValues;
+            Vector3[] parentC = parentCorners;
+           if(nodeDepth < maxDepth)
+           {
+                leafNode = false;
+               for (int i = 0; i < nodeChildrenPos.Length; i++)
+               {
+                   nodeChildren[i] = (new OctreeNode2(nodeChildrenPos[i], (nodeSize * .5f), (nodeDepth + 1), standardDepth, this));
+                   nodeChildren[i].leafNode = true;
+                   nodeChildren[i].SubdivideIfNeeded(maxDepth, parentValues, parentCorners);
+                }
+           }
+           if(leafNode)
+            for (int i = 0; i < 8; i++)
+                {
+                    cornerValues[i] = EvaluateScalarField(GetCorners()[i], 2f, Vector3.zero);
+                }
+            //HaveChildren();
+        }
+
         // combine this node
         public void Undivide()
         {
-            if(HaveChildren())
+            // Only proceed if this node has children
+            if (HaveChildren())
             {
-                foreach(OctreeNode2 child in nodeChildren)
+                // Recursively undivide all children first
+                foreach (OctreeNode2 child in nodeChildren)
                 {
                     child.Undivide();
                 }
+
+                // Clear the child nodes
+                nodeChildren = new OctreeNode2[8];
+
+                // If you have any data to consolidate from children to the parent node, do it here.
+                // For example, update parent node values based on child nodes.
+                // This part depends on your specific use case. Here is a generic example:
+                // cornerValues could be updated or re-evaluated here based on child node data.
+
+                leafNode = true; // This node becomes a leaf node after undividing
             }
-            nodeChildren = null;
         }
 
         private void PushVertice(Vector3 sphereCenter, float sphereRadius)
@@ -305,21 +378,22 @@ namespace Test.Octree
         }
 
         // Method to traverse the octree and collect all nodes
-        public List<OctreeNode2> TraverseOctree()
+        public Dictionary<Vector3, OctreeNode2> TraverseOctree()
         {
-            List<OctreeNode2> allNodes = new List<OctreeNode2>();
+            Dictionary<Vector3, OctreeNode2> allNodes = new Dictionary<Vector3, OctreeNode2>();
             TraverseNode(this, allNodes);
             return allNodes;
         }
 
         // Recursive method to traverse each node and its children
-        private static void TraverseNode(OctreeNode2 node, List<OctreeNode2> nodeList)
+        private static void TraverseNode(OctreeNode2 node, Dictionary<Vector3, OctreeNode2> nodeList)
         {
             if (node == null)
                 return;
 
             // Add the current node to the list
-            nodeList.Add(node);
+            if(!nodeList.ContainsValue(node))
+                nodeList.Add(node.nodePosition, node);
 
             // Traverse all children
             foreach (OctreeNode2 child in node.nodeChildren)

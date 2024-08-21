@@ -49,7 +49,7 @@ namespace Test.Octree
 
             //rootNode.AssignScalarValues(rootNode, radius, transform.position);
 
-            allNodes = rootNode.TraverseOctree();
+            //allNodes = rootNode.TraverseOctree();
 
             foreach (OctreeNode2 node in allNodes)
             {

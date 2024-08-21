@@ -34,7 +34,7 @@ namespace Test.Octree
         public Vector3 voxelPoint;
         public OctreeNode[] nodeChildren = new OctreeNode[8];
         public OctreeNode[] nodeNeighbours = new OctreeNode[26];
-        private Vector3[] nodeChildrenPos = new Vector3[8];
+        public Vector3[] nodeChildrenPos = new Vector3[8];
         public Vector3[] nodeNeighboursPos = new Vector3[26];
         private OctreeNode nodeParent;
         public int[] nodeTriangle = new int[3];
@@ -73,7 +73,7 @@ namespace Test.Octree
             nodeInfo = allNodes;
         }
 
-        private void GetChildPositions()
+        public void GetChildPositions()
         {
             Vector3 halfSize = new Vector3(nodeSize * .25f, nodeSize * .25f, nodeSize * .25f);
             Vector3[] childOffsets = new Vector3[]

@@ -8,6 +8,8 @@ public class RayCast : MonoBehaviour
     [SerializeField]
     private GameObject target;
 
+    private Marching marchScript;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -16,6 +18,7 @@ public class RayCast : MonoBehaviour
         {
             Debug.LogError("Main Camera not found. Please ensure there's a Camera tagged as 'MainCamera' in the scene.");
         }
+        marchScript = target.GetComponent<Marching>();
     }
 
     // Update is called once per frame
@@ -27,12 +30,18 @@ public class RayCast : MonoBehaviour
         }
 
         // Movement logic
-        Vector3 moveDirection = (cam.transform.forward * Input.GetAxis("Vertical")) + (transform.right * Input.GetAxis("Horizontal"));
-        transform.position = Vector3.MoveTowards(transform.position, transform.position + moveDirection, Time.deltaTime * 10f);
+       Vector3 moveDirection = (cam.transform.forward * Input.GetAxis("Vertical")) + (transform.right * Input.GetAxis("Horizontal"));
+       transform.position = Vector3.MoveTowards(transform.position, transform.position + moveDirection, Time.deltaTime * 10f);
+       //
+       //// Rotation logic
+       //float mouseY = Input.GetAxis("Mouse Y");
+       //float mouseX = Input.GetAxis("Mouse X");
 
-        // Rotation logic
-        float mouseY = Input.GetAxis("Mouse Y");
-        float mouseX = Input.GetAxis("Mouse X");
+        //marchScript.CameraPos(cam.transform.position);
+        RaycastHit HitInfo;
+
+        //if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out HitInfo, 100.0f))
+        //    marchScript.CameraPos(HitInfo.point);
 
         transform.LookAt(target.transform, target.transform.up);
 
@@ -56,8 +65,9 @@ public class RayCast : MonoBehaviour
                 if (hit.transform.CompareTag("Terrain"))
                 {
                     Debug.DrawLine(transform.position, hit.point, Color.green);
+                    //hit.transform.GetComponent<Marching>().SubdivideNode(hit.point);
                     hit.transform.GetComponent<Marching>().AddTerrain(hit.point, 0.5f);
-                    hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
+                    //hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
                 }
             }
             else
@@ -74,8 +84,9 @@ public class RayCast : MonoBehaviour
                 if (hit.transform.CompareTag("Terrain"))
                 {
                    Debug.DrawLine(transform.position, hit.point, Color.green);
+                    Debug.Log("HIT: " + hit.point);
                    hit.transform.GetComponent<Marching>().RemoveTerrain(hit.point, 0.5f);
-                   hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
+                   //hit.transform.GetComponent<Marching>().DrawHitcube(hit.point);
                 }
             }
             else

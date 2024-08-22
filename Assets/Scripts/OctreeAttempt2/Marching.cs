@@ -9,7 +9,6 @@ using UnityEngine.UIElements;
 public class Marching : MonoBehaviour
 {
     [Header("Planet Settings")]
-    //public float radius = 1f;
     public float isoLevel = 0.5f;
 
     [Header("Octree Settings")]
@@ -44,7 +43,6 @@ public class Marching : MonoBehaviour
     void Start()
     {
         rootNode = new OctreeNode2(transform.position, rootNodeSize, 0, standardDepth, rootNode);
-        //rootNode.AssignScalarValues(rootNode, radius, transform.position);
 
         shapeGenerator.UpdateSettings(shapeSettings);
         colourGenerator.UpdateSettings(colourSettings);
@@ -121,7 +119,6 @@ public class Marching : MonoBehaviour
         myMesh.triangles = triangles.ToArray();
 
         myMesh.RecalculateNormals();
-        //myMesh.uv = uv;
         return myMesh;
     }
 
@@ -134,7 +131,6 @@ public class Marching : MonoBehaviour
         {
             cubeCorners[i] = node.CornerValues()[i];
 
-            // Debugging precision issues
             float epsilon = 0.0001f;
             if (cubeCorners[i] < isoLevel - epsilon)
             {
@@ -144,7 +140,6 @@ public class Marching : MonoBehaviour
 
         if (cubeIndex == 0 || cubeIndex == 255) return;
 
-        // Generate triangles
         for (int i = 0; MarchingTable.Triangles[cubeIndex, i] != -1; i += 3)
         {
             int edgeIndex1 = MarchingTable.Triangles[cubeIndex, i];
@@ -202,7 +197,6 @@ public class Marching : MonoBehaviour
 
     int GetCornerIndex(Vector3 localPosition)
     {
-        // Convert the local position to the nearest corner index.
         for (int i = 0; i < MarchingTable.Corners.Length; i++)
         {
             if (MarchingTable.Corners[i] == new Vector3Int((int)localPosition.x, (int)localPosition.y, (int)localPosition.z))
@@ -211,7 +205,7 @@ public class Marching : MonoBehaviour
             }
         }
         Debug.LogError($"Corner not found for position: {localPosition}");
-        return -1; // Invalid index
+        return -1; 
     }
 
     public void AddTerrain(Vector3 position, float strength)
@@ -224,17 +218,13 @@ public class Marching : MonoBehaviour
 
             for (int i = 0; i < 8; i++)
             {
-                // Calculate the new value
                 float newValue = Mathf.Clamp01(foundNode.cornerValues[i] + strength);
 
-                // Update the value in the current node
                 foundNode.cornerValues[i] = newValue;
 
-                // Update the value in all adjacent nodes sharing this corner
                 UpdateSharedCornerValues(foundNode, corners[i], newValue);
             }
 
-            //allNodes = rootNode.TraverseOctree();
             UpdateMesh();
         }
     }
@@ -265,24 +255,19 @@ public class Marching : MonoBehaviour
 
             for (int i = 0; i < 8; i++)
             {
-                // Calculate the new value
                 float newValue = Mathf.Clamp01(foundNode.cornerValues[i] - strength);
 
-                // Update the value in the current node
                 foundNode.cornerValues[i] = newValue;
 
-                // Update the value in all adjacent nodes sharing this corner
                 UpdateSharedCornerValues(foundNode, corners[i], newValue);
             }
 
-            //allNodes = rootNode.TraverseOctree();
             UpdateMesh();
         }
     }
 
     public void UpdateMesh()
     {
-        //Initialize();
         myMesh = GenerateMesh();
         colourGenerator.UpdateElevation(shapeGenerator.elevationMinMax);
         GenerateColours();
@@ -323,16 +308,13 @@ public class Marching : MonoBehaviour
             Vector3 vertex = vertices[i];
             Vector3 pointOnUnitSphere = vertex.normalized;
 
-            //float u = Mathf.Atan2(pointOnUnitSphere.z, pointOnUnitSphere.x) / (2f * Mathf.PI) + 0.5f;
-            //float v = Mathf.Asin(pointOnUnitSphere.y) / Mathf.PI + 0.5f;
             Vector3 thisPosition = transform.position + new Vector3(shapeSettings.planetRadius, shapeSettings.planetRadius, shapeSettings.planetRadius);
             float distance = Vector3.Distance(thisPosition, vertex) - shapeSettings.planetRadius;
             float v = Mathf.Clamp01(distance);
 
-            // Optionally apply biome influence
             float biomeIndex = colourGenerator.BiomePercentFromPoint(pointOnUnitSphere);
 
-            uv[i].x = biomeIndex;// = new Vector2(biomeIndex, v); // new Vector2(u, v);
+            uv[i].x = biomeIndex;
         }
 
         myMesh.uv = uv;

@@ -57,38 +57,12 @@ namespace Test.Octree
                 {
                     vertices.Add(node.voxelPoint);
 
-                    //float treshold = 1f;
-                    //if (MarchingCubesGenerator.GenerateTriangles(node, treshold).Count > 2f)
-                    //{
-                    //    Vector3 test1 = node.testVertices[MarchingCubesGenerator.GenerateTriangles(node, treshold)[0]];
-                    //    Vector3 test2 = node.testVertices[MarchingCubesGenerator.GenerateTriangles(node, treshold)[1]];
-                    //    Vector3 test3 = node.testVertices[MarchingCubesGenerator.GenerateTriangles(node, treshold)[2]];
-                    //    vertices.Add(test1);
-                    //    vertices.Add(test2);
-                    //    vertices.Add(test3);
-                    //    triangles.Add(vertices.IndexOf(test1));
-                    //    triangles.Add(vertices.IndexOf(test2));
-                    //    triangles.Add(vertices.IndexOf(test3));
-                    //}
                 }
             }
 
             CreateTriangles();
         }
 
-        private void Update()
-        {
-            if (Input.GetKeyUp(KeyCode.Space))
-            {
-                GenerateMesh();
-            }           
-
-            if (Input.GetKeyDown(KeyCode.N))
-            {
-                rootNode.PlaceVertexInNode(rootNode, placeVertex);
-
-            }
-        }
         private void GenerateMesh()
         {
             Mesh mesh = new Mesh();

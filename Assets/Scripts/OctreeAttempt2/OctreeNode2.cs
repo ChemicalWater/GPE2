@@ -44,7 +44,6 @@ namespace Test.Octree
             this.parent = nodeParent;
 
             scalarValue = 0;
-            //FindVertices();
             Subdivide();
         }
 
@@ -69,7 +68,7 @@ namespace Test.Octree
             return cornerValues;
         }
 
-        public float EvaluateScalarField(Vector3 position, float radius, Vector3 center)//, float noiseScale, float noiseStrength)
+        public float EvaluateScalarField(Vector3 position, float radius, Vector3 center)
         {
             if (octreeCenter == new Vector3())
                 octreeCenter = center;
@@ -80,49 +79,7 @@ namespace Test.Octree
             float distanceFromCenter = Vector3.Distance(position, center);
             float baseValue = Mathf.Clamp01(1f - (distanceFromCenter / radius));
 
-            //// Add 3D noise
-            //float noiseX = Mathf.PerlinNoise(position.x * noiseScale, position.y * noiseScale);
-            //float noiseY = Mathf.PerlinNoise(position.y * noiseScale, position.z * noiseScale);
-            //float noiseZ = Mathf.PerlinNoise(position.z * noiseScale, position.x * noiseScale);
-
-            // Combine the 3D noise values
-            //float noiseValue = (noiseX + noiseY + noiseZ) / 3f * noiseStrength;
-
-            // Combine the base value and noise
-            return Mathf.Clamp01(baseValue);// + noiseValue);
-        }
-
-        public void AssignScalarValues(OctreeNode2 node, float radius, Vector3 center)
-        {
-            if (leafNode)
-            {
-                float distanceFromCenter = Vector3.Distance(nodePosition, center) - radius;
-
-                scalarValue = (radius - distanceFromCenter) / radius;
-
-                for (int i = 0; i < 8; i++)
-                {
-                    Vector3 cornerPos = GetCorners()[i];
-                    float cornerDistanceFromCenter = Vector3.Distance(cornerPos, center) - radius;
-                    //cornerValues[i] = (radius - cornerDistanceFromCenter) / radius;
-
-                    //float cornerDistanceFromCenter = Vector3.Distance(cornerPos, center);
-                    cornerValues[i] = Mathf.Clamp01((radius - cornerDistanceFromCenter) / radius);
-
-                    //if (cornerValues[i] < 0)
-                    //    cornerValues[i] = 0;
-                    //else
-                    //    cornerValues[i] = 1;
-                }
-
-                //PushVertice(center, radius);
-                return;
-            }
-
-            foreach (var child in nodeChildren)
-            {
-                child.AssignScalarValues(child, radius, center);
-            }
+            return Mathf.Clamp01(baseValue);
         }
 
         public Vector3[] GetNeighbourPositions()
@@ -214,35 +171,7 @@ namespace Test.Octree
             return node;
         }
 
-
         // Function to place a vertex inside the octree
-        public void PlaceVertexInNode(OctreeNode2 node, Vector3 vertex)
-        {
-            if (node.IsPointInsideNode(vertex) && node.nodeDepth != standardDepth)
-            {
-                if(node.HaveChildren())
-                {
-                    // Traverse through the child nodes to find the correct node containing the vertex.
-                    foreach (OctreeNode2 child in node.nodeChildren)
-                    {
-                        if (child.IsPointInsideNode(vertex))
-                        {
-                            // Recursively call the method on the child node that contains the vertex.
-                            PlaceVertexInNode(child, vertex);
-                            return; // Stop the loop as we found the correct child.
-                        }
-                    }
-                } else
-                {
-                    node.Subdivide();
-                }
-            } else
-            {
-                node.voxelPoint = ClosestPointInsideNode(vertex);
-                //PlaceVertexInNode(node, node.ClosestPointInsideNode(vertex));
-            }
-
-        }
 
         //Split this node into children
         public void Subdivide()
@@ -356,7 +285,7 @@ namespace Test.Octree
             return new Vector3(closestX, closestY, closestZ);
         }
 
-        // Check if a point is inside the node's AABB
+        // Check if a point is inside the node
         public bool IsPointInsideNode(Vector3 objPos)
         {
             if (objPos.x >= nodePosition.x - (nodeSize / 2) && objPos.x <= nodePosition.x + (nodeSize / 2))

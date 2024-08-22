@@ -26,7 +26,7 @@ public class ColourGenerator
 
     public float BiomePercentFromPoint(Vector3 pointOnUnitSphere)
     {
-        // Calculate the elevation based on the distance from the sphere's center (assuming a unit sphere where the radius = 1)
+        // Calculate the elevation based on the distance from the sphere's center
         float elevation = pointOnUnitSphere.magnitude;
 
         // Normalize the elevation (for a unit sphere, this should already be between 0 and 1)
